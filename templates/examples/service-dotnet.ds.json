@@ -1,0 +1,9 @@
+{
+  "name": "billing-worker",
+  "strategy": "windows-service",
+  "service": {
+    "serviceName": "BillingWorker",
+    "displayName": "Billing Worker",
+    "executable": "BillingWorker.exe"
+  }
+}

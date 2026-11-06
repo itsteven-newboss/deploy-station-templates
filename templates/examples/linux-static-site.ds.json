@@ -1,0 +1,11 @@
+{
+  "name": "portal",
+  "strategy": "nginx-site",
+  "health": { "url": "http://127.0.0.1/" },
+  "nginx": {
+    "listen": 80,
+    "serverName": "portal.example.com",
+    "root": "dist",
+    "spa": true
+  }
+}

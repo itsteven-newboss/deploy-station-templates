@@ -1,0 +1,16 @@
+{
+  "name": "pricing-api",
+  "strategy": "systemd-service",
+  "health": { "url": "http://127.0.0.1:8081/health" },
+  "python": {
+    "interpreter": "python3",
+    "requirements": "requirements.txt",
+    "wheelhouse": "wheels"
+  },
+  "service": {
+    "serviceName": "pricing-api",
+    "executable": ".venv/bin/gunicorn",
+    "arguments": "--bind 127.0.0.1:8081 app:app",
+    "environmentFile": "app.env"
+  }
+}

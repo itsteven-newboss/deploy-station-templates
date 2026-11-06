@@ -1,0 +1,39 @@
+name: Deploy Station fetch package
+description: >
+  Downloads the package for this server's OS (package-windows.zip / package-linux.zip, or the
+  portable package.zip) from the calling repository's release, verifies its SHA-256 and extracts
+  it. Runs on a Windows or Ubuntu target server.
+
+inputs:
+  version:
+    description: Package version, e.g. 1.5.0-rc.2
+    required: true
+  token:
+    description: Token allowed to read the app repository's releases
+    default: ${{ github.token }}
+
+outputs:
+  package-dir:
+    description: Folder containing the extracted package
+    value: ${{ steps.windows.outputs.package-dir || steps.linux.outputs.package-dir }}
+
+runs:
+  using: composite
+  steps:
+    - id: windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      env:
+        DS_GITHUB_TOKEN: ${{ inputs.token }}
+        DS_VERSION: ${{ inputs.version }}
+      run: >
+        & (Join-Path $env:GITHUB_ACTION_PATH 'Get-DsPackage.ps1')
+        -Version $env:DS_VERSION -OutDir (Join-Path $env:RUNNER_TEMP 'ds-package')
+
+    - id: linux
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        DS_GITHUB_TOKEN: ${{ inputs.token }}
+        DS_VERSION: ${{ inputs.version }}
+      run: bash "$GITHUB_ACTION_PATH/get-ds-package.sh" "$DS_VERSION" "$RUNNER_TEMP/ds-package"

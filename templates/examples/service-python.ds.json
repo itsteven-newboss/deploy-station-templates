@@ -1,0 +1,17 @@
+{
+  "name": "pricing-api",
+  "strategy": "windows-service",
+  "python": {
+    "interpreter": "C:\\Python313\\python.exe",
+    "requirements": "requirements.txt",
+    "wheelhouse": "wheels"
+  },
+  "service": {
+    "serviceName": "PricingApi",
+    "displayName": "Pricing API",
+    "wrapper": "winsw",
+    "executable": ".venv\\Scripts\\python.exe",
+    "arguments": "-m waitress --listen=127.0.0.1:8081 app:app"
+  },
+  "health": { "url": "http://127.0.0.1:8081/health" }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "orders-api",
+  "strategy": "iis-site",
+  "health": { "url": "http://localhost:8080/health", "timeoutSeconds": 60 },
+  "prerequisites": {
+    "windowsFeatures": ["Web-Server", "Web-Scripting-Tools"],
+    "installers": [
+      {
+        "name": "ASP.NET Core 10.0.14 Hosting Bundle",
+        "url": "https://builds.dotnet.microsoft.com/dotnet/aspnetcore/Runtime/10.0.14/dotnet-hosting-10.0.14-win.exe",
+        "sha512": "cc61e2a043319e2a8a4105cb6eb242855375ee5c165ed94478cb01330940139f5c100429317b31fa85d6a7d579df61cd929697371db78333b482474ceb9fd32f",
+        "arguments": "/install /quiet /norestart",
+        "installedPath": [
+          "C:\\Program Files\\IIS\\Asp.Net Core Module\\V2\\aspnetcorev2.dll",
+          "C:\\Program Files\\dotnet\\shared\\Microsoft.AspNetCore.App\\10.0.*"
+        ]
+      }
+    ]
+  },
+  "iis": {
+    "siteName": "OrdersApi",
+    "managedRuntimeVersion": "",
+    "bindings": [{ "protocol": "http", "port": 8080, "hostName": "" }]
+  }
+}

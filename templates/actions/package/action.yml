@@ -1,0 +1,57 @@
+name: Deploy Station package
+description: >
+  Builds the package (the built app, both Deploy Station deploy engines and ds.json) and publishes
+  it, with its SHA-256, to the pre-release v<version> of the calling repository.
+
+inputs:
+  version:
+    description: Release candidate version, e.g. 1.5.0-rc.2
+    required: true
+  source:
+    description: Folder containing the built application
+    required: true
+  manifest:
+    description: Path to ds.json in the app repository
+    default: ds.json
+  os:
+    description: >
+      any = portable build, published as package.zip for every server;
+      windows / linux = OS-specific build, published as package-windows.zip / package-linux.zip
+    default: any
+  token:
+    description: Token allowed to create releases in the app repository (contents write)
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build the package
+      shell: pwsh
+      env:
+        DS_VERSION: ${{ inputs.version }}
+        DS_SOURCE: ${{ inputs.source }}
+        DS_MANIFEST: ${{ inputs.manifest }}
+        DS_OS: ${{ inputs.os }}
+      run: >
+        & (Join-Path $env:GITHUB_ACTION_PATH 'New-DsPackage.ps1')
+        -Version $env:DS_VERSION -Source $env:DS_SOURCE -Manifest $env:DS_MANIFEST -Os $env:DS_OS
+        -OutDir (Join-Path $env:RUNNER_TEMP 'ds-out')
+
+    - name: Publish to pre-release v${{ inputs.version }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        DS_VERSION: ${{ inputs.version }}
+        DS_OS: ${{ inputs.os }}
+      run: |
+        tag="v$DS_VERSION"
+        out="$RUNNER_TEMP/ds-out"
+        file="package.zip"
+        if [[ "$DS_OS" != "any" ]]; then file="package-$DS_OS.zip"; fi
+        # Builds for two OSes run in parallel; whichever is second finds the release already there.
+        if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+            --title "$tag" --notes "Release candidate built by Deploy Station from $GITHUB_SHA." \
+            || gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null
+        fi
+        gh release upload "$tag" "$out/$file" "$out/$file.sha256" --repo "$GITHUB_REPOSITORY" --clobber

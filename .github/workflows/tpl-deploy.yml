@@ -1,0 +1,50 @@
+# Deploy Station template: deploy a package to target servers, Windows or Ubuntu, one at a time
+# (docs/DESIGN.md 11.3). Each job runs on one server's self-hosted runner; the gatekeeper on the
+# server checks with Deploy Station before the job starts, and the job runs the engine for its OS.
+#   uses: itsteven-newboss/deploy-station-templates/.github/workflows/tpl-deploy.yml@tpl-v6
+name: DS template - deploy to servers
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Package version to deploy, e.g. 1.5.0-rc.2
+        type: string
+        required: true
+      targets:
+        description: JSON list of runner labels, e.g. ["ds-myapi-prod-web01","ds-myapi-prod-web02"]
+        type: string
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.version }} to ${{ matrix.target }}
+    strategy:
+      max-parallel: 1 # rolling: one server at a time
+      fail-fast: true # stop the rollout when a server fails
+      matrix:
+        target: ${{ fromJSON(inputs.targets) }}
+    runs-on: [self-hosted, '${{ matrix.target }}']
+    steps:
+      - name: Fetch package
+        id: fetch
+        # Keep this ref in step with the tpl-vN tag being released.
+        uses: itsteven-newboss/deploy-station-templates/templates/actions/fetch-package@tpl-v6
+        with:
+          version: ${{ inputs.version }}
+
+      - name: Deploy (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        env:
+          DS_VERSION: ${{ inputs.version }}
+          DS_PACKAGE: ${{ steps.fetch.outputs.package-dir }}
+        run: '& (Join-Path $env:DS_PACKAGE "_ds\deploy.ps1") -Version $env:DS_VERSION -PackageDir $env:DS_PACKAGE'
+
+      - name: Deploy (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          DS_VERSION: ${{ inputs.version }}
+          DS_PACKAGE: ${{ steps.fetch.outputs.package-dir }}
+        run: bash "$DS_PACKAGE/_ds/deploy.sh" "$DS_VERSION" "$DS_PACKAGE"

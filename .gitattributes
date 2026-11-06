@@ -1,0 +1,2 @@
+# The deploy engines run on Ubuntu (bash) and Windows PowerShell 5.1: keep every file's line endings as LF.
+* text=auto eol=lf

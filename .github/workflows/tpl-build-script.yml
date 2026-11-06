@@ -1,0 +1,56 @@
+# Deploy Station template: build with the app repository's own script (docs/DESIGN.md 11.2).
+# The script receives -Version and -OutputDir (PowerShell) or $DS_VERSION / $DS_OUTPUT_DIR (bash)
+# and must put the built application in the output folder.
+#   uses: itsteven-newboss/deploy-station-templates/.github/workflows/tpl-build-script.yml@tpl-v6
+name: DS template - build with script
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release candidate version, e.g. 1.5.0-rc.2
+        type: string
+        required: true
+      script:
+        description: Build script in the app repository (.ps1 or .sh)
+        type: string
+        default: ds/build.ps1
+      runs-on:
+        type: string
+        default: windows-latest
+      target-os:
+        description: any (portable build, package.zip), windows or linux (package-<os>.zip)
+        type: string
+        default: any
+      manifest:
+        description: Path to ds.json
+        type: string
+        default: ds.json
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run build script
+        shell: pwsh
+        env:
+          DS_SCRIPT: ${{ inputs.script }}
+          DS_VERSION: ${{ inputs.version }}
+          DS_OUTPUT_DIR: ${{ runner.temp }}/ds-build
+        run: |
+          New-Item -ItemType Directory -Path $env:DS_OUTPUT_DIR -Force | Out-Null
+          if ($env:DS_SCRIPT -like '*.sh') {
+            bash $env:DS_SCRIPT
+          } else {
+            & "./$env:DS_SCRIPT" -Version $env:DS_VERSION -OutputDir $env:DS_OUTPUT_DIR
+          }
+          if ($LASTEXITCODE) { throw "Build script failed (exit code $LASTEXITCODE)" }
+
+      - uses: itsteven-newboss/deploy-station-templates/templates/actions/package@tpl-v6
+        with:
+          version: ${{ inputs.version }}
+          source: ${{ runner.temp }}/ds-build
+          manifest: ${{ inputs.manifest }}
+          os: ${{ inputs.target-os }}

@@ -1,0 +1,11 @@
+{
+  "name": "notify-service",
+  "strategy": "windows-service",
+  "service": {
+    "serviceName": "NotifyService",
+    "wrapper": "winsw",
+    "executable": "C:\\Program Files\\nodejs\\node.exe",
+    "arguments": "server.js"
+  },
+  "health": { "url": "http://127.0.0.1:8090/health" }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "batch-jobs",
+  "strategy": "script",
+  "script": { "path": "deploy/control.sh" },
+  "windows": {
+    "script": { "path": "deploy\\control.ps1" }
+  }
+}

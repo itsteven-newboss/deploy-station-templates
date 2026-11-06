@@ -1,0 +1,63 @@
+# Deploy Station template: build a .NET app and publish its package (docs/DESIGN.md 11.2).
+# Called from an app repository's ds-test.yml:
+#   uses: itsteven-newboss/deploy-station-templates/.github/workflows/tpl-build-dotnet.yml@tpl-v6
+# .NET Framework apps: use tpl-build-script.yml with the repository's own ds/build.ps1.
+name: DS template - build .NET
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release candidate version, e.g. 1.5.0-rc.2
+        type: string
+        required: true
+      project:
+        description: Path to the .csproj to publish
+        type: string
+        required: true
+      dotnet-version:
+        type: string
+        default: 10.0.x
+      runs-on:
+        description: Build runner; windows-latest for Windows-only projects (uses twice the Actions minutes)
+        type: string
+        default: ubuntu-latest
+      target-os:
+        description: any (portable build, package.zip), windows or linux (package-<os>.zip)
+        type: string
+        default: any
+      manifest:
+        description: Path to ds.json
+        type: string
+        default: ds.json
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ inputs.dotnet-version }}
+
+      - name: Publish
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          PROJECT: ${{ inputs.project }}
+        run: |
+          # 1.5.0-rc.2 -> VersionPrefix 1.5.0 (assembly version) + VersionSuffix rc.2 (informational)
+          prefix="${VERSION%%-*}"
+          suffix=""
+          if [[ "$VERSION" == *-* ]]; then suffix="${VERSION#*-}"; fi
+          dotnet publish "$PROJECT" -c Release -o "$RUNNER_TEMP/publish" \
+            -p:VersionPrefix="$prefix" -p:VersionSuffix="$suffix"
+
+      # Keep this ref in step with the tpl-vN tag being released.
+      - uses: itsteven-newboss/deploy-station-templates/templates/actions/package@tpl-v6
+        with:
+          version: ${{ inputs.version }}
+          source: ${{ runner.temp }}/publish
+          manifest: ${{ inputs.manifest }}
+          os: ${{ inputs.target-os }}

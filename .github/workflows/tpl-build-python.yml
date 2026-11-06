@@ -1,0 +1,73 @@
+# Deploy Station template: package a Python app with wheels for the target OS (docs/DESIGN.md 11.2).
+# Target servers install the wheels offline into a virtualenv (ds.json "python" section), so the
+# servers' Python minor version must match python-version.
+#   target-os: windows -> package-windows.zip, linux -> package-linux.zip, both -> both, built in parallel.
+#   uses: itsteven-newboss/deploy-station-templates/.github/workflows/tpl-build-python.yml@tpl-v6
+name: DS template - build Python
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release candidate version, e.g. 1.5.0-rc.2
+        type: string
+        required: true
+      target-os:
+        description: windows, linux or both
+        type: string
+        default: linux
+      python-version:
+        description: Must match the Python installed on the target servers
+        type: string
+        default: '3.12'
+      linux-runner:
+        description: Build Linux wheels on the oldest Ubuntu you deploy to (wheels built on a newer one may not run on an older one)
+        type: string
+        default: ubuntu-latest
+      app-dir:
+        description: Folder with the application code
+        type: string
+        default: .
+      requirements:
+        description: Requirements file, relative to app-dir
+        type: string
+        default: requirements.txt
+      manifest:
+        description: Path to ds.json
+        type: string
+        default: ds.json
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: ${{ fromJSON(inputs.target-os == 'both' && '["windows","linux"]' || format('["{0}"]', inputs.target-os)) }}
+    # Windows builds use twice the Actions minutes.
+    runs-on: ${{ matrix.os == 'windows' && 'windows-latest' || inputs.linux-runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Copy app and build wheels
+        shell: pwsh
+        env:
+          APP_DIR: ${{ inputs.app-dir }}
+          REQUIREMENTS: ${{ inputs.requirements }}
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'app'
+          New-Item -ItemType Directory -Path $out -Force | Out-Null
+          Get-ChildItem -LiteralPath $env:APP_DIR -Force |
+            Where-Object { @('.git', '.github', '.venv', '__pycache__') -notcontains $_.Name } |
+            Copy-Item -Destination $out -Recurse -Force
+          python -m pip wheel -r (Join-Path $env:APP_DIR $env:REQUIREMENTS) -w (Join-Path $out 'wheels')
+          if ($LASTEXITCODE -ne 0) { throw 'Building wheels failed' }
+
+      - uses: itsteven-newboss/deploy-station-templates/templates/actions/package@tpl-v6
+        with:
+          version: ${{ inputs.version }}
+          source: ${{ runner.temp }}/app
+          manifest: ${{ inputs.manifest }}
+          os: ${{ matrix.os }}

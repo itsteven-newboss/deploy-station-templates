@@ -1,0 +1,66 @@
+# Deploy Station template: build a Node.js app or static front-end (docs/DESIGN.md 11.2).
+#   uses: itsteven-newboss/deploy-station-templates/.github/workflows/tpl-build-node.yml@tpl-v6
+# For a Node service, leave output-dir as "." so node_modules (production only) is packaged.
+name: DS template - build Node.js
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release candidate version, e.g. 1.5.0-rc.2
+        type: string
+        required: true
+      node-version:
+        type: string
+        default: '24'
+      working-directory:
+        type: string
+        default: .
+      build-command:
+        type: string
+        default: npm run build --if-present
+      output-dir:
+        description: Folder to package, relative to working-directory ("dist" for a static site)
+        type: string
+        default: .
+      runs-on:
+        description: windows-latest if the app has native modules (uses twice the Actions minutes)
+        type: string
+        default: ubuntu-latest
+      target-os:
+        description: any (portable build, package.zip), windows or linux (package-<os>.zip)
+        type: string
+        default: any
+      manifest:
+        description: Path to ds.json
+        type: string
+        default: ds.json
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runs-on }}
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install and build
+        shell: bash
+        env:
+          BUILD_COMMAND: ${{ inputs.build-command }}
+        run: |
+          npm ci
+          eval "$BUILD_COMMAND"
+          npm prune --omit=dev
+
+      - uses: itsteven-newboss/deploy-station-templates/templates/actions/package@tpl-v6
+        with:
+          version: ${{ inputs.version }}
+          source: ${{ inputs.working-directory }}/${{ inputs.output-dir }}
+          manifest: ${{ inputs.manifest }}
+          os: ${{ inputs.target-os }}

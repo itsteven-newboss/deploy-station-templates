@@ -1,0 +1,23 @@
+{
+  "name": "orders-api",
+  "strategy": "systemd-service",
+  "health": { "url": "http://127.0.0.1:5000/health" },
+  "prerequisites": {
+    "aptPackages": ["aspnetcore-runtime-10.0"],
+    "aptRepositories": ["ppa:dotnet/backports"]
+  },
+  "service": {
+    "serviceName": "orders-api",
+    "executable": "/usr/bin/dotnet",
+    "arguments": "OrdersApi.dll",
+    "environment": {
+      "ASPNETCORE_URLS": "http://127.0.0.1:5000",
+      "ASPNETCORE_ENVIRONMENT": "Production"
+    }
+  },
+  "nginx": {
+    "listen": 80,
+    "serverName": "orders.example.com",
+    "proxyPass": "http://127.0.0.1:5000"
+  }
+}
